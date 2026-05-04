@@ -27,23 +27,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-/* =========================
-   STATE
-========================= */
 let queue = [];
 let current = null;
 let viewers = 0;
 let playIdCounter = 0;
 let endTimer = null;
 
-/* =========================
-   LYRICS CACHE
-========================= */
 const lyricsCache = new Map();
 
-/* =========================
-   HELPERS
-========================= */
 function clearEndTimer() {
     if (endTimer) {
         clearTimeout(endTimer);
@@ -224,71 +215,66 @@ function httpsGetJson(urlStr) {
     });
 }
 
+
 function cleanSearchTerm(term) {
-    return term
-        .replace(/\(.*\)/g, '')       // ลบข้อความในวงเล็บ ( )
-        .replace(/\[.*\]/g, '')       // ลบข้อความในวงเล็บ [ ]
-        .replace(/- official.*/gi, '') // ลบคำว่า Official MV / Video
-        .replace(/ft\..*/gi, '')       // ลบ Featuring
-        .replace(/feat\..*/gi, '')
-        .trim();
+    if (!term) return '';
+
+    let text = term;
+
+    text = text.replace(/\[.*?\]/g, '').replace(/\(.*?\)/g, '');
+
+    text = text.replace(/official\s*mv/gi, '')
+        .replace(/official\s*video/gi, '')
+        .replace(/lyric\s*video/gi, '')
+        .replace(/\bmv\b/gi, '');
+
+    text = text.replace(/\b(ft|feat)\.?\s+[^-]*/gi, '');
+
+    text = text.replace(/whattheduck|warner music|universal music/gi, '');
+
+    return text.replace(/\s+/g, ' ').trim();
 }
 
 async function lookupLyrics(title, artist) {
-  const cleanTitle = cleanSearchTerm(title);
-    const cleanArtist = cleanSearchTerm(artist);
+    console.log(`🎵 Raw Title: "${title}"`);
 
-    if (!cleanTitle) return null;
+    const query = cleanSearchTerm(title);
 
-    const cacheKey = `${cleanTitle.toLowerCase()}|${cleanArtist.toLowerCase()}`;
-    
-    
+    console.log(`🔎 Searching lyrics for: "${query}"`);
+
+    if (!query || query.length < 2) {
+        return { synced: '', plain: '', source: 'none' };
+    }
+
+    const cacheKey = `lyric_final_${query.toLowerCase().replace(/\s+/g, '_')}`;
     const cached = lyricsCache.get(cacheKey);
     if (cached && Date.now() - cached.savedAt < LYRICS_CACHE_TTL_MS) {
         return cached.data;
     }
 
-      const qTitle = encodeURIComponent(cleanTitle);
-    const qArtist = encodeURIComponent(cleanArtist);
+    let lyricData = null;
+    try {
+        const searchUrl = `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`;
+        const searchResults = await httpsGetJson(searchUrl);
 
-    let data = await httpsGetJson(
-        `https://lrclib.net/api/get?track_name=${qTitle}&artist_name=${qArtist}`
-    );
-
-    // ถ้ายังไม่เจอ ให้ลองค้นหาแบบกว้าง (Search API) โดยใช้แค่ชื่อเพลงอย่างเดียว
-    if (!data || (!data.syncedLyrics && !data.plainLyrics)) {
-        const searchData = await httpsGetJson(
-            `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`
-        );
-
-        if (Array.isArray(searchData) && searchData.length > 0) {
-            data = searchData[0]; // เลือกผลลัพธ์แรกที่ใกล้เคียงที่สุด
+        if (Array.isArray(searchResults) && searchResults.length > 0) {
+            lyricData = searchResults.find(item => item.syncedLyrics) || searchResults[0];
+            console.log(`✅ Found: "${lyricData.trackName}" by "${lyricData.artistName}"`);
         }
+    } catch (err) {
+        console.error('LYRICS FETCH ERROR:', err.message);
     }
 
-    const normalized = data
-        ? {
-            synced: String(data.syncedLyrics || ''),
-            plain: String(data.plainLyrics || ''),
-            source: 'lrclib'
-        }
-        : {
-            synced: '',
-            plain: '',
-            source: 'none'
-        };
+    const normalized = lyricData ? {
+        synced: String(lyricData.syncedLyrics || ''),
+        plain: String(lyricData.plainLyrics || ''),
+        source: 'lrclib'
+    } : { synced: '', plain: '', source: 'none' };
 
-    lyricsCache.set(cacheKey, {
-        savedAt: Date.now(),
-        data: normalized
-    });
-
+    lyricsCache.set(cacheKey, { savedAt: Date.now(), data: normalized });
     return normalized;
 }
 
-/* =========================
-   API
-========================= */
 app.get('/api/search', async (req, res) => {
     const query = String(req.query.q || '').trim();
     if (!query) return res.json([]);
@@ -328,9 +314,6 @@ app.get('/api/queue', (req, res) => {
     });
 });
 
-/* =========================
-   SOCKET.IO
-========================= */
 io.on('connection', socket => {
     viewers += 1;
     emitState();
@@ -403,9 +386,6 @@ io.on('connection', socket => {
     });
 });
 
-/* =========================
-   ERROR GUARDS
-========================= */
 process.on('uncaughtException', err => {
     console.error('UNCAUGHT EXCEPTION:', err);
 });
@@ -414,9 +394,6 @@ process.on('unhandledRejection', err => {
     console.error('UNHANDLED REJECTION:', err);
 });
 
-/* =========================
-   START
-========================= */
 server.listen(PORT, () => {
     console.log(`Music room running on http://localhost:${PORT}`);
 });
