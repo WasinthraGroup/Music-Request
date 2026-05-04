@@ -3,6 +3,7 @@ const http = require('http');
 const path = require('path');
 const https = require('https');
 const { Server } = require('socket.io');
+const ytSearch = require('yt-search');
 
 const app = express();
 const server = http.createServer(app);
@@ -126,30 +127,18 @@ function advanceQueue() {
 }
 
 async function searchYoutube(query) {
-    const r = await fetch(
-        `https://yt.lemnoslife.com/search?q=${encodeURIComponent(query)}`
-    );
+    const result = await ytSearch(query);
+    const videos = Array.isArray(result?.videos) ? result.videos : [];
 
-    const text = await r.text();
-
-    if (!r.ok || text.startsWith('<')) {
-        throw new Error('Search API broken / blocked');
-    }
-
-    const data = JSON.parse(text);
-
-    return (data.items || [])
-        .filter(v => v.id?.videoId)
-        .slice(0, 10)
-        .map(v => ({
-            id: v.id.videoId,
-            videoId: v.id.videoId,
-            title: v.snippet.title,
-            artist: v.snippet.channelTitle,
-            thumbnail: v.snippet.thumbnails.medium.url,
-            duration: DEFAULT_DURATION_SEC,
-            source: 'YouTube'
-        }));
+    return videos.slice(0, 10).map(v => ({
+        id: v.videoId,
+        videoId: v.videoId,
+        title: v.title || '',
+        artist: v.author?.name || v.author?.username || '',
+        thumbnail: v.thumbnail || v.image || '',
+        duration: Number(v.seconds || DEFAULT_DURATION_SEC),
+        source: 'YouTube'
+    }));
 }
 
 async function resolveRequestedTrack(payload) {
