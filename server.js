@@ -224,32 +224,45 @@ function httpsGetJson(urlStr) {
     });
 }
 
+function cleanSearchTerm(term) {
+    return term
+        .replace(/\(.*\)/g, '')       // ลบข้อความในวงเล็บ ( )
+        .replace(/\[.*\]/g, '')       // ลบข้อความในวงเล็บ [ ]
+        .replace(/- official.*/gi, '') // ลบคำว่า Official MV / Video
+        .replace(/ft\..*/gi, '')       // ลบ Featuring
+        .replace(/feat\..*/gi, '')
+        .trim();
+}
+
 async function lookupLyrics(title, artist) {
-    const titleSafe = String(title || '').trim();
-    const artistSafe = String(artist || '').trim();
+  const cleanTitle = cleanSearchTerm(title);
+    const cleanArtist = cleanSearchTerm(artist);
 
-    if (!titleSafe) return null;
+    if (!cleanTitle) return null;
 
-    const cacheKey = `${titleSafe.toLowerCase()}|${artistSafe.toLowerCase()}`;
+    const cacheKey = `${cleanTitle.toLowerCase()}|${cleanArtist.toLowerCase()}`;
+    
+    
     const cached = lyricsCache.get(cacheKey);
     if (cached && Date.now() - cached.savedAt < LYRICS_CACHE_TTL_MS) {
         return cached.data;
     }
 
-    const qTitle = encodeURIComponent(titleSafe);
-    const qArtist = encodeURIComponent(artistSafe);
+      const qTitle = encodeURIComponent(cleanTitle);
+    const qArtist = encodeURIComponent(cleanArtist);
 
     let data = await httpsGetJson(
         `https://lrclib.net/api/get?track_name=${qTitle}&artist_name=${qArtist}`
     );
 
+    // ถ้ายังไม่เจอ ให้ลองค้นหาแบบกว้าง (Search API) โดยใช้แค่ชื่อเพลงอย่างเดียว
     if (!data || (!data.syncedLyrics && !data.plainLyrics)) {
         const searchData = await httpsGetJson(
-            `https://lrclib.net/api/search?track_name=${qTitle}&artist_name=${qArtist}`
+            `https://lrclib.net/api/search?q=${encodeURIComponent(cleanTitle + ' ' + cleanArtist)}`
         );
 
         if (Array.isArray(searchData) && searchData.length > 0) {
-            data = searchData.find(item => item && (item.syncedLyrics || item.plainLyrics)) || searchData[0] || null;
+            data = searchData[0]; // เลือกผลลัพธ์แรกที่ใกล้เคียงที่สุด
         }
     }
 
