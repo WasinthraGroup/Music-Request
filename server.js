@@ -126,13 +126,22 @@ function advanceQueue() {
 }
 
 async function searchYoutube(query) {
-    try {
-        const r = await fetch(`https://ytsearch.lemnoslife.com/search?q=${encodeURIComponent(query)}`);
-        if (!r.ok) throw new Error();
+    const r = await fetch(
+        `https://yt.lemnoslife.com/search?q=${encodeURIComponent(query)}`
+    );
 
-        const data = await r.json();
+    const text = await r.text();
 
-        return (data.items || []).slice(0, 10).map(v => ({
+    if (!r.ok || text.startsWith('<')) {
+        throw new Error('Search API broken / blocked');
+    }
+
+    const data = JSON.parse(text);
+
+    return (data.items || [])
+        .filter(v => v.id?.videoId)
+        .slice(0, 10)
+        .map(v => ({
             id: v.id.videoId,
             videoId: v.id.videoId,
             title: v.snippet.title,
@@ -141,22 +150,6 @@ async function searchYoutube(query) {
             duration: DEFAULT_DURATION_SEC,
             source: 'YouTube'
         }));
-    } catch {
-        console.log('Primary search failed, fallback...');
-
-        const r = await fetch(`https://piped.video/api/v1/search?q=${encodeURIComponent(query)}&filter=videos`);
-        const data = await r.json();
-
-        return (data || []).slice(0, 10).map(v => ({
-            id: v.id,
-            videoId: v.id,
-            title: v.title,
-            artist: v.uploaderName,
-            thumbnail: v.thumbnail,
-            duration: v.duration || DEFAULT_DURATION_SEC,
-            source: 'YouTube'
-        }));
-    }
 }
 
 async function resolveRequestedTrack(payload) {
