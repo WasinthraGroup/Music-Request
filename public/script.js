@@ -1,14 +1,11 @@
-// --- Configuration ---
 const SUPABASE_URL = 'https://fucrcbuqbpnbftyljqgi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1Y3JjYnVxYnBuYmZ0eWxqcWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Nzc1MTIsImV4cCI6MjA5MTI1MzUxMn0.XXKIgZ_9Ciciq3qfgINK48J70HbunRyP28p1MiIv6To';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
-// --- 1. เริ่มต้นระบบ (Prevent White Screen) ---
 $(document).ready(async function() {
     try {
-        // ตรวจสอบ Session
         const { data: { session }, error: sessionError } = await client.auth.getSession();
         
         if (session) {
@@ -20,22 +17,16 @@ $(document).ready(async function() {
             currentUser = profile;
         }
 
-        // แสดงผล UI พื้นฐาน
         updateNavbarUI(session);
         
-        // --- ส่วนเสริมสำหรับหน้าเล่นเพลง (Music Room Logic) ---
-        // ถ้าคุณมีฟังก์ชันสำหรับดึงเพลงหรือตั้งค่าเครื่องเล่น YouTube ให้เรียกที่นี่
-        // initMusicRoom(); 
 
     } catch (err) {
         console.error("Initialization Error:", err);
     } finally {
-        // สำคัญที่สุด: เอาคลาส hidden ออกเพื่อให้หน้าเว็บแสดงผล
         $('body').removeClass('hidden');
     }
 });
 
-// --- 2. Navbar & UI Management ---
 async function updateNavbarUI(session) {
     const navAction = $('#navAction');
     const desktopNav = $('#desktopNav');
@@ -43,11 +34,10 @@ async function updateNavbarUI(session) {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
 
     const menuItems = [
-        { name: 'หน้าแรก', url: 'index.html' },
-        { name: 'เวิร์กชอป', url: 'workshop.html' }
+        { name: 'หน้าแรก', url: 'https://studio-5lgd.onrender.com' },
+        { name: 'เวิร์กชอป', url: 'https://studio-5lgd.onrender.com/workshop.html' }
     ];
 
-    // Render Desktop Nav
     const navHtml = menuItems.map(item => `
         <a href="${item.url}" class="text-sm font-bold transition-colors ${currentPage === item.url ? 'text-[#721c24]' : 'text-gray-500 hover:text-[#721c24]'}">
             ${item.name}
@@ -84,7 +74,6 @@ async function updateNavbarUI(session) {
     }
 }
 
-// --- 3. Profile & Interaction Functions ---
 function toggleDropdown() { $('#profileDropdown').toggleClass('hidden'); }
 function toggleMobileMenu() { $('#mobileMenu').toggleClass('hidden'); }
 
@@ -104,7 +93,6 @@ function closeProfileModal() {
     $('#profileModal').addClass('hidden').css('display', 'none');
 }
 
-// อัปเดตโปรไฟล์
 $('#profileUpdateForm').submit(async function(e) {
     e.preventDefault();
     const newUsername = $('#editUsername').val().trim().toLowerCase();
@@ -141,13 +129,11 @@ $('#profileUpdateForm').submit(async function(e) {
     }
 });
 
-// Logout
 async function logout() {
     await client.auth.signOut();
     window.location.href = 'index.html';
 }
 
-// Preview รูปก่อนอัปโหลด
 $('#avatarInput').change(function() {
     const file = this.files[0];
     if (file) {
