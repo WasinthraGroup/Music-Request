@@ -1,6 +1,3 @@
-'use strict';
-
-console.log('MAIN JS LOADED');
 
 const socket = io();
 
@@ -655,6 +652,8 @@ if (el.searchResults) {
         const btn = event.target.closest('.request-button');
         if (!btn) return;
 
+        const user = window.currentUser;
+
         const payload = {
             id: String(Date.now()),
             videoId: btn.dataset.videoId || '',
@@ -662,10 +661,8 @@ if (el.searchResults) {
             artist: btn.dataset.artist || '',
             thumbnail: btn.dataset.thumbnail || '',
             duration: Number(btn.dataset.duration || 180),
-            requestedBy: 'Guest'
+            requestedBy: user?.full_name || user?.username || 'Guest'
         };
-
-        if (!payload.videoId || !payload.title) return;
 
         socket.emit('requestSong', payload);
     });
