@@ -7,18 +7,28 @@ let currentUser = null;
 
 // --- 3. Authentication Logic ---
 async function checkUserAuth() {
+    const isLoginPage = window.location.pathname.includes('login.html');
+
     try {
-        // ดึงข้อมูล User ปัจจุบัน
         const { data: { user }, error: authError } = await client.auth.getUser();
         
-        // กฎเหล็ก: ถ้าไม่มี User หรือ Error ให้เตะไปหน้า Login ทันที
         if (authError || !user) {
-            console.warn("Unauthorized access - Redirecting to login...");
-            window.location.href = 'login.html'; 
+            // ถ้าไม่มี User และ "ไม่ได้อยู่ที่หน้า login" ให้ส่งไปหน้า login
+            if (!isLoginPage) {
+                console.warn("Unauthorized access - Redirecting to login...");
+                window.location.href = 'login.html';
+            }
             return;
         }
 
-        // ถ้ามี User ให้ดึง Profile ต่อ
+        // --- ถ้า Login แล้ว ---
+        
+        // ถ้าอยู่ที่หน้า login แต่ดันมี User (Login ค้างไว้) ให้ส่งไปหน้าหลัก
+        if (isLoginPage) {
+            window.location.href = 'index.html'; 
+            return;
+        }
+
         const { data: profile, error: profileError } = await client
             .from('profiles')
             .select('*')
@@ -29,10 +39,13 @@ async function checkUserAuth() {
 
         currentUser = profile;
         updateUserUI(profile);
+        $('body').removeClass('hidden'); // แสดงหน้าเว็บเมื่อทุกอย่างพร้อม
 
     } catch (err) {
         console.error("Critical Auth Error:", err.message);
-        window.location.href = 'login.html';
+        if (!isLoginPage) {
+            window.location.href = 'login.html';
+        }
     }
 }
 
