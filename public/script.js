@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://fucrcbuqbpnbftyljqgi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1Y3JjYnVxYnBuYmZ0eWxqcWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Nzc1MTIsImV4cCI6MjA5MTI1MzUxMn0.XXKIgZ_9Ciciq3qfgINK48J70HbunRyP28p1MiIv6To';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser = null;
+let window.currentUser = null;
 
 $(document).ready(async function() {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
@@ -26,7 +26,7 @@ $(document).ready(async function() {
                 .select('*')
                 .eq('id', session.user.id)
                 .single();
-            currentUser = profile;
+            window.currentUser = profile;
             updateNavbarUI(session);
         }
 
@@ -100,13 +100,13 @@ async function updateNavbarUI(session) {
     desktopNav.html(navHtml);
     mobileMenuLinks.html(navHtml);
 
-    const avatar = currentUser?.avatar_url || 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png';
+    const avatar = window.currentUser?.avatar_url || 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png';
     navAction.html(`
         <div class="relative inline-block text-left">
             <button onclick="toggleDropdown()" class="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-xl transition-all border border-transparent hover:border-gray-100">
                 <div class="text-right hidden md:block">
-                    <p class="text-xs font-bold text-gray-800 leading-none">${currentUser?.full_name || currentUser?.username}</p>
-                    <p class="text-[10px] text-gray-400 uppercase mt-1 tracking-tighter">${currentUser?.role || 'Member'}</p>
+                    <p class="text-xs font-bold text-gray-800 leading-none">${window.currentUser?.full_name || window.currentUser?.username}</p>
+                    <p class="text-[10px] text-gray-400 uppercase mt-1 tracking-tighter">${window.currentUser?.role || 'Member'}</p>
                 </div>
                 <img src="${avatar}" class="w-10 h-10 rounded-full object-cover border-2 border-[#b38b59]/20 shadow-sm">
             </button>
