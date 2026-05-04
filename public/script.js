@@ -5,31 +5,41 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = null;
 
 $(document).ready(async function() {
+    const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+
     try {
         const { data: { session }, error: sessionError } = await client.auth.getSession();
         
-        if (!session) {
+        if (!session && currentPage !== 'login.html') {
             window.location.href = 'login.html'; 
             return; 
         }
 
-        const { data: profile, error: profileError } = await client
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+        if (session && currentPage === 'login.html') {
+            window.location.href = 'index.html';
+            return;
+        }
 
-        if (profileError) throw profileError;
-        currentUser = profile;
+        if (session) {
+            const { data: profile, error: profileError } = await client
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-        updateNavbarUI(session);
+            if (profileError) throw profileError;
+            currentUser = profile;
 
-        
+            updateNavbarUI(session);
+        }
+
         $('body').removeClass('hidden');
 
     } catch (err) {
         console.error("Auth/Init Error:", err);
-        window.location.href = 'login.html';
+        if (currentPage !== 'login.html') {
+            window.location.href = 'login.html';
+        }
     }
 });
 
