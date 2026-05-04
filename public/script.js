@@ -8,7 +8,7 @@ $(document).ready(async function() {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
 
     try {
-        const { data: { session }, error: sessionError } = await client.auth.getSession();
+        const { data: { session } } = await client.auth.getSession();
         
         if (!session && currentPage !== 'login.html') {
             window.location.href = 'login.html'; 
@@ -21,25 +21,63 @@ $(document).ready(async function() {
         }
 
         if (session) {
-            const { data: profile, error: profileError } = await client
+            const { data: profile } = await client
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
                 .single();
-
-            if (profileError) throw profileError;
             currentUser = profile;
-
             updateNavbarUI(session);
         }
 
         $('body').removeClass('hidden');
 
     } catch (err) {
-        console.error("Auth/Init Error:", err);
-        if (currentPage !== 'login.html') {
-            window.location.href = 'login.html';
+        console.error("Initialization Error:", err);
+        if (currentPage !== 'login.html') window.location.href = 'login.html';
+    }
+});
+
+$(document).on('submit', '#loginForm', async function(e) {
+    e.preventDefault();
+    const userInput = $('#username').val().trim().toLowerCase();
+    const password = $('#password').val();
+
+    if (!userInput || !password) {
+        return Swal.fire({ icon: 'info', title: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    }
+
+    Swal.fire({ title: 'กำลังเข้าสู่ระบบ...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+
+    try {
+        let finalEmail = userInput;
+
+        if (!userInput.includes('@')) {
+            const { data: profile, error: profileError } = await client
+                .from('profiles')
+                .select('email')
+                .eq('username', userInput)
+                .single();
+
+            if (profileError || !profile) {
+                return Swal.fire({ icon: 'error', title: 'ไม่พบชื่อผู้ใช้งานนี้' });
+            }
+            finalEmail = profile.email;
         }
+
+        const { error: authError } = await client.auth.signInWithPassword({
+            email: finalEmail,
+            password: password
+        });
+
+        if (authError) {
+            Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง' });
+        } else {
+            window.location.href = 'index.html'; 
+        }
+    } catch (err) {
+        console.error("Login Error:", err);
+        Swal.fire({ icon: 'error', title: 'ระบบขัดข้อง' });
     }
 });
 
@@ -50,8 +88,8 @@ async function updateNavbarUI(session) {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
 
     const menuItems = [
-        { name: 'หน้าแรก', url: 'https://studio-5lgd.onrender.com' },
-        { name: 'เวิร์กชอป', url: 'https://studio-5lgd.onrender.com/workshop.html' }
+        { name: 'หน้าแรก', url: 'index.html' },
+        { name: 'เวิร์กชอป', url: 'workshop.html' }
     ];
 
     const navHtml = menuItems.map(item => `
@@ -73,10 +111,10 @@ async function updateNavbarUI(session) {
                 <img src="${avatar}" class="w-10 h-10 rounded-full object-cover border-2 border-[#b38b59]/20 shadow-sm">
             </button>
             <div id="profileDropdown" class="hidden absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-[1001] animate__animated animate__fadeInUp animate__faster">
-                <button onclick="openProfileModal()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3">⚙️ ตั้งค่าโปรไฟล์</button>
-                <a href="workshop.html" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-3">📅 ตารางงานของฉัน</a>
+                <button onclick="openProfileModal()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">⚙️ ตั้งค่าโปรไฟล์</button>
+                <a href="workshop.html" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">📅 ตารางงานของฉัน</a>
                 <hr class="my-2 border-gray-50">
-                <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3">🚪 ออกจากระบบ</button>
+                <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3">🚪 ออกจากระบบ</button>
             </div>
         </div>`);
 }
@@ -86,62 +124,6 @@ function toggleMobileMenu() { $('#mobileMenu').toggleClass('hidden'); }
 
 $(window).on('click', e => {
     if (!$(e.target).closest('#navAction').length) $('#profileDropdown').addClass('hidden');
-});
-
-function openProfileModal() {
-    $('#profileDropdown').addClass('hidden');
-    $('#profileModal').removeClass('hidden').css('display', 'flex');
-    $('#editUsername').val(currentUser?.username || '');
-    $('#editFullName').val(currentUser?.full_name || '');
-    if (currentUser?.avatar_url) $('#profilePreview').attr('src', currentUser.avatar_url);
-}
-
-function closeProfileModal() {
-    $('#profileModal').addClass('hidden').css('display', 'none');
-}
-
-$('#profileUpdateForm').submit(async function(e) {
-    e.preventDefault();
-    const newUsername = $('#editUsername').val().trim().toLowerCase();
-    const newName = $('#editFullName').val().trim();
-    const newPass = $('#newProfilePass').val(); 
-    const avatarFile = $('#avatarInput')[0].files[0];
-
-    closeProfileModal();
-    Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
-
-    try {
-        let avatarUrl = currentUser.avatar_url;
-        if (avatarFile) {
-            const fileName = `avatars/${currentUser.id}-${Date.now()}`;
-            const { data, error: uploadError } = await client.storage.from('avatars').upload(fileName, avatarFile);
-            if (uploadError) throw uploadError;
-            avatarUrl = client.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
-        }
-
-        const { error: updateError } = await client.from('profiles').update({ 
-            full_name: newName, username: newUsername, avatar_url: avatarUrl 
-        }).eq('id', currentUser.id);
-        if (updateError) throw updateError;
-
-        if (newPass && newPass.trim() !== "") {
-            const { error: passError } = await client.auth.updateUser({ password: newPass });
-            if (passError) throw passError;
-        }
-
-        Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: 'อัปเดตข้อมูลแล้ว' }).then(() => location.reload());
-    } catch (err) {
-        Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: err.message });
-    }
-});
-
-$('#avatarInput').change(function() {
-    const file = this.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => $('#profilePreview').attr('src', e.target.result);
-        reader.readAsDataURL(file);
-    }
 });
 
 async function logout() {
