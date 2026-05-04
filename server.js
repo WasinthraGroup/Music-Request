@@ -126,18 +126,37 @@ function advanceQueue() {
 }
 
 async function searchYoutube(query) {
-    const result = await fetch(`https://ytsearch.lemnoslife.com/search?q=${encodeURIComponent(query)}`);
-    const videos = Array.isArray(result?.videos) ? result.videos : [];
+    try {
+        const r = await fetch(`https://ytsearch.lemnoslife.com/search?q=${encodeURIComponent(query)}`);
+        if (!r.ok) throw new Error();
 
-    return videos.slice(0, 10).map(v => ({
-        id: v.videoId,
-        videoId: v.videoId,
-        title: v.title || '',
-        artist: v.author?.name || v.author?.username || '',
-        thumbnail: v.thumbnail || v.image || '',
-        duration: Number(v.seconds || DEFAULT_DURATION_SEC),
-        source: 'YouTube'
-    }));
+        const data = await r.json();
+
+        return (data.items || []).slice(0, 10).map(v => ({
+            id: v.id.videoId,
+            videoId: v.id.videoId,
+            title: v.snippet.title,
+            artist: v.snippet.channelTitle,
+            thumbnail: v.snippet.thumbnails.medium.url,
+            duration: DEFAULT_DURATION_SEC,
+            source: 'YouTube'
+        }));
+    } catch {
+        console.log('Primary search failed, fallback...');
+
+        const r = await fetch(`https://piped.video/api/v1/search?q=${encodeURIComponent(query)}&filter=videos`);
+        const data = await r.json();
+
+        return (data || []).slice(0, 10).map(v => ({
+            id: v.id,
+            videoId: v.id,
+            title: v.title,
+            artist: v.uploaderName,
+            thumbnail: v.thumbnail,
+            duration: v.duration || DEFAULT_DURATION_SEC,
+            source: 'YouTube'
+        }));
+    }
 }
 
 async function resolveRequestedTrack(payload) {
