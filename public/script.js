@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://fucrcbuqbpnbftyljqgi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1Y3JjYnVxYnBuYmZ0eWxqcWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Nzc1MTIsImV4cCI6MjA5MTI1MzUxMn0.XXKIgZ_9Ciciq3qfgINK48J70HbunRyP28p1MiIv6To';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let window.currentUser = null;
+window.currentUser = null;
 
 $(document).ready(async function() {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
