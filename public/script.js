@@ -88,8 +88,8 @@ async function updateNavbarUI(session) {
     const currentPage = window.location.pathname.split("/").pop() || 'index.html';
 
     const menuItems = [
-        { name: 'หน้าแรก', url: 'index.html' },
-        { name: 'เวิร์กชอป', url: 'workshop.html' }
+        { name: 'หน้าแรก', url: 'https://studio-5lgd.onrender.com' },
+        { name: 'เวิร์กชอป', url: 'https://studio-5lgd.onrender.com/workshop.html' }
     ];
 
     const navHtml = menuItems.map(item => `
