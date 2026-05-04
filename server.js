@@ -3,7 +3,6 @@ const http = require('http');
 const path = require('path');
 const https = require('https');
 const { Server } = require('socket.io');
-const ytSearch = require('yt-search');
 
 const app = express();
 const server = http.createServer(app);
@@ -127,7 +126,7 @@ function advanceQueue() {
 }
 
 async function searchYoutube(query) {
-    const result = await ytSearch(query);
+    const result = await fetch(`https://ytsearch.lemnoslife.com/search?q=${encodeURIComponent(query)}`);
     const videos = Array.isArray(result?.videos) ? result.videos : [];
 
     return videos.slice(0, 10).map(v => ({
