@@ -2,38 +2,37 @@
 <html lang="th">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ห้องเพลง | ว.Studio</title>
     <link rel="icon" href="https://i.pinimg.com/564x/b3/29/a0/b329a0abc2e5f601a6aa3747a76bae00.jpg">
+
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
+    <link rel="stylesheet" href="styles.css" />
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <script src="script.js" defer></script>
-    <script src="main.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 
-<body class="hidden bg-[#fdfaf5]">
+<body class="bg-[#fdfaf5] hidden">
 
-  <nav class="bg-white/80 backdrop-blur-md shadow-sm fixed w-full z-50">
+     <nav class="bg-white/80 backdrop-blur-md shadow-sm fixed w-full z-50">
         <div class="max-w-7xl mx-auto px-6 flex justify-between items-center h-20">
             <div class="flex items-center gap-10">
-                <div class="text-xl font-bold cursor-pointer" onclick="window.location.href='.'" style="color: #721c24;">
+                <div class="text-xl font-bold cursor-pointer" onclick="window.location.href='.'" style="color: var(--thai-red);">
                     ว.<span>Studio</span>
                 </div>
-                <div id="desktopNav" class="hidden md:flex items-center gap-8">
-                    </div>
+                <div id="desktopNav" class="hidden md:flex items-center gap-8"></div>
             </div>
-    
+
             <div class="flex items-center gap-4">
-                <div id="navAction" class="relative">
-                    </div>
+                <div id="navAction" class="relative"></div>
                 <button onclick="toggleMobileMenu()" class="md:hidden text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
@@ -41,19 +40,19 @@
                 </button>
             </div>
         </div>
-    
+
         <div id="mobileMenu" class="hidden md:hidden bg-white border-t border-gray-100 px-6 py-4 shadow-xl">
             <div id="mobileMenuLinks" class="flex flex-col gap-4"></div>
         </div>
     </nav>
-    
+
     <div id="profileModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate__animated animate__zoomIn animate__faster">
             <div class="bg-[#721c24] px-6 py-4 flex justify-between items-center text-white">
                 <h3 class="text-lg font-bold italic tracking-wide">Account Settings</h3>
                 <button onclick="closeProfileModal()" class="text-2xl hover:opacity-70 transition-opacity">&times;</button>
             </div>
-    
+
             <form id="profileUpdateForm" class="p-6 space-y-5">
                 <div class="flex flex-col items-center gap-3">
                     <div class="relative group">
@@ -66,7 +65,7 @@
                     <input type="file" id="avatarInput" accept="image/*" class="hidden">
                     <p class="text-[10px] text-gray-400 font-bold uppercase">คลิกไอคอนเพื่อเปลี่ยนรูป</p>
                 </div>
-    
+
                 <div class="space-y-4">
                     <div>
                         <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Username</label>
@@ -81,7 +80,7 @@
                         <input type="password" id="newProfilePass" class="w-full border-gray-200 border p-2.5 rounded-xl mt-1 focus:ring-2 focus:ring-[#b38b59] outline-none transition-all" placeholder="••••••••">
                     </div>
                 </div>
-    
+
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="closeProfileModal()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition">ยกเลิก</button>
                     <button type="submit" class="flex-1 py-3 bg-[#721c24] text-white rounded-xl font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all">บันทึกข้อมูล</button>
@@ -90,51 +89,148 @@
         </div>
     </div>
 
-    <div class="h-20"></div>
+    
 
-    <main class="max-w-7xl mx-auto px-6 py-10">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <div class="lg:col-span-2 space-y-6">
-                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
-                    <h2 class="text-xl font-bold mb-6 text-[#721c24]">ค้นหาเพลง</h2>
-                    <form id="searchForm" class="flex gap-3 mb-8">
-                        <input id="searchInput" type="text" placeholder="ชื่อเพลงหรือศิลปิน" class="flex-1 bg-gray-50 border-none p-4 rounded-2xl outline-none focus:ring-2 focus:ring-[#b38b59]/20">
-                        <button type="submit" class="bg-[#721c24] text-white px-8 rounded-2xl font-bold hover:opacity-90 transition-all">ค้นหา</button>
-                    </form>
-                    <div id="searchResults" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        </div>
-                </div>
-            </div>
-
-            <div class="space-y-6">
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <h3 class="text-lg font-bold mb-4 text-[#721c24]">กำลังเล่น</h3>
-                    <div class="rounded-2xl overflow-hidden bg-black aspect-video shadow-inner">
-                        <div id="player"></div>
-                    </div>
-                    <div id="nowPlaying" class="mt-4 text-sm font-medium text-gray-700"></div>
-                </div>
-
-                <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-[#721c24]">คิวเพลง</h3>
-                        <span id="queueMeta" class="text-[10px] bg-gray-100 px-2 py-1 rounded-full text-gray-400 uppercase font-bold">0 Songs</span>
-                    </div>
-                    <div id="queueList" class="space-y-3 max-h-[400px] overflow-y-auto">
-                        <p class="text-xs text-gray-400 italic text-center py-4">ยังไม่มีเพลงในคิว...</p>
-                    </div>
-                </div>
-            </div>
-
+    <header class="pt-32 pb-10 px-6 max-w-7xl mx-auto">
+        <div class="reveal">
+            <h1 class="text-3xl font-bold text-[#721c24] mb-2 font-['IBM_Plex_Sans_Thai']">Music Request Room</h1>
+            <p class="text-gray-500 text-sm">ค้นหาเพลง ขอเพลง โหวตข้ามคิว เล่นต่ออัตโนมัติ และมีเนื้อเพลง</p>
         </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 pb-20">
+        <section class="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
+            
+            <div class="card-thai reveal bg-white p-6 rounded-3xl shadow-sm border border-gray-100 min-h-[220px]">
+                <div class="flex items-center justify-between gap-4 mb-6">
+                    <h2 class="text-lg font-bold text-[#721c24] font-['IBM_Plex_Sans_Thai']">ค้นหาเพลง</h2>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">YouTube Search</span>
+                </div>
+
+                <form id="searchForm" class="flex gap-3 mb-6">
+                    <input id="searchInput" type="text" placeholder="พิมพ์ชื่อเพลงหรือศิลปิน" autocomplete="off"
+                        class="flex-1 border border-gray-100 bg-gray-50 rounded-full px-6 py-3.5 text-sm outline-none focus:ring-2 focus:ring-[#b38b59]/20 transition-all" />
+                    <button id="searchButton" type="submit" class="bg-[#721c24] text-white px-8 py-3.5 rounded-full font-bold text-sm hover:opacity-90 active:scale-95 transition-all shadow-lg">
+                        ค้นหา
+                    </button>
+                </form>
+
+                <div id="searchResults" class="grid gap-3"></div>
+            </div>
+
+            <div class="grid gap-8">
+                
+                <div class="card-thai reveal bg-white p-6 rounded-3xl shadow-sm border border-gray-100" style="background: linear-gradient(180deg, #fff 0%, #fbf6ed 100%);">
+                    <div class="flex items-center justify-between gap-4 mb-6">
+                        <h2 class="text-lg font-bold text-[#721c24] font-['IBM_Plex_Sans_Thai']">กำลังเล่น</h2>
+                        <span id="currentVotesInfo" class="text-xs font-bold text-[#b38b59]">Votes: 0 / 1</span>
+                    </div>
+
+                    <div class="rounded-2xl overflow-hidden bg-black shadow-2xl mb-6 aspect-video border-4 border-white">
+                        <div id="player" class="w-full h-full"></div>
+                    </div>
+
+                    <div id="nowPlaying"></div>
+
+                    <div class="grid gap-4 mt-6">
+                        <div class="flex gap-3">
+                            <button id="enableSoundButton" class="flex-1 bg-gray-800 text-white py-3 rounded-xl font-bold text-[10px] uppercase hover:bg-black transition-all">เปิดเสียงเครื่องนี้</button>
+                            <button id="playButton" class="flex-1 bg-[#721c24] text-white py-3 rounded-xl font-bold text-[10px] uppercase hover:opacity-90 transition-all shadow-md">เล่นเพลงปัจจุบัน</button>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                                <label for="volume">Volume</label>
+                                <span id="soundStatus">Muted</span>
+                            </div>
+                            <input id="volume" type="range" min="0" max="100" value="60" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#721c24]" />
+                        </div>
+
+                        <div class="pt-2">
+                            <div class="h-1.5 w-full bg-gray-200/50 rounded-full overflow-hidden">
+                                <div id="progressFill" class="h-full w-0 bg-gradient-to-r from-[#721c24] to-[#b38b59] rounded-full transition-all duration-300"></div>
+                            </div>
+                            <div id="progressText" class="mt-2 text-[10px] font-bold text-gray-400 text-right">0:00 / 0:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-thai reveal bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <h2 class="text-lg font-bold text-[#721c24] font-['IBM_Plex_Sans_Thai']">เนื้อเพลง</h2>
+                        <span id="lyricsStatus" class="text-[10px] font-bold text-gray-400 uppercase">Waiting...</span>
+                    </div>
+                    <div id="lyricsCurrentLine" class="text-xl font-bold text-[#721c24] min-h-[3rem] mb-4 leading-tight">—</div>
+                    <div id="lyricsContent" class="max-h-[200px] overflow-auto text-sm text-gray-500 leading-relaxed italic pr-2"></div>
+                </div>
+
+                <div class="card-thai reveal bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div class="flex items-center justify-between gap-4 mb-6">
+                        <h2 class="text-lg font-bold text-[#721c24] font-['IBM_Plex_Sans_Thai']">คิวเพลง</h2>
+                        <span id="queueMeta" class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-[10px] font-bold">0 Songs</span>
+                    </div>
+                    <div id="queueList" class="grid gap-3"></div>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <footer class="bg-white border-t py-12">
-        <div class="max-w-7xl mx-auto px-6 text-center text-gray-400 text-xs">
-            © 2026 วศินทราสตูดิโอ (Wasintra Studio). All rights reserved.
+    <footer class="bg-white border-t py-12 mt-20">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <div class="text-xl font-bold mb-4" style="color: #721c24;">ว.<span>Studio</span></div>
+            <p class="text-xs text-gray-400 mb-2">© 2026 วศินทราสตูดิโอ (Wasintra Studio). All rights reserved.</p>
         </div>
     </footer>
 
+    <div id="profileModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate__animated animate__zoomIn animate__faster">
+            <div class="bg-[#721c24] px-6 py-4 flex justify-between items-center text-white">
+                <h3 class="text-lg font-bold italic tracking-wide">Account Settings</h3>
+                <button onclick="closeProfileModal()" class="text-2xl hover:opacity-70 transition-opacity">&times;</button>
+            </div>
+
+            <form id="profileUpdateForm" class="p-6 space-y-5">
+                <div class="flex flex-col items-center gap-3">
+                    <div class="relative group">
+                        <img id="profilePreview" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT7csvPWMdfAHEAnhIRTdJKCK5SPK4cHfskow&s" 
+                             class="w-24 h-24 rounded-full object-cover border-4 border-[#fdfaf5] shadow-md">
+                        <label for="avatarInput" class="absolute bottom-0 right-0 bg-[#b38b59] text-white p-1.5 rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg">
+                            <i class="fa-solid fa-camera text-[12px]"></i>
+                        </label>
+                    </div>
+                    <input type="file" id="avatarInput" accept="image/*" class="hidden">
+                    <p class="text-[10px] text-gray-400 font-bold uppercase">คลิกไอคอนเพื่อเปลี่ยนรูป</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Username</label>
+                        <input type="text" id="editUsername" class="w-full border-gray-200 border p-2.5 rounded-xl mt-1 focus:ring-2 focus:ring-[#b38b59] outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">ชื่อ-นามสกุล</label>
+                        <input type="text" id="editFullName" class="w-full border-gray-200 border p-2.5 rounded-xl mt-1 focus:ring-2 focus:ring-[#b38b59] outline-none transition-all">
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">รหัสผ่านใหม่ (หากต้องการเปลี่ยน)</label>
+                        <input type="password" id="newProfilePass" class="w-full border-gray-200 border p-2.5 rounded-xl mt-1 focus:ring-2 focus:ring-[#b38b59] outline-none transition-all" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeProfileModal()" class="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-50 rounded-xl transition">ยกเลิก</button>
+                    <button type="submit" class="flex-1 py-3 bg-[#721c24] text-white rounded-xl font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all">บันทึกข้อมูล</button>
+                </div>
+            </form>
+            <div class="px-6 pb-6">
+                <button onclick="logout()" class="w-full py-3 bg-gray-100 text-red-600 rounded-xl font-bold hover:bg-red-50 transition-colors">ออกจากระบบ</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="script.js"></script>
+    <script src="main.js"></script>
 </body>
+
 </html>
