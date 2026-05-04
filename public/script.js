@@ -38,6 +38,92 @@ $(document).ready(async function() {
     }
 });
 
+
+
+function openProfileModal() {
+    $('#profileDropdown').addClass('hidden');
+    $('#profileModal').removeClass('hidden').css('display', 'flex');
+    $('#editUsername').val(currentUser?.username || '');
+    $('#editFullName').val(currentUser?.full_name || '');
+    if (currentUser?.avatar_url) $('#profilePreview').attr('src', currentUser.avatar_url);
+}
+
+function closeProfileModal() { $('#profileModal').addClass('hidden').css('display', 'none'); }
+
+$('#profileUpdateForm').submit(async function(e) {
+    e.preventDefault();
+    
+    const newUsername = $('#editUsername').val().trim().toLowerCase();
+    const newName = $('#editFullName').val().trim();
+    const newPass = $('#newProfilePass').val(); 
+    const avatarFile = $('#avatarInput')[0].files[0];
+
+    closeProfileModal();
+
+    Swal.fire({ 
+        title: 'กำลังบันทึก...', 
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading() 
+    });
+
+    try {
+        let avatarUrl = currentUser.avatar_url;
+
+        if (avatarFile) {
+            const fileName = `${currentUser.id}-${Date.now()}`;
+            const { error: uploadError } = await client.storage.from('avatars').upload(fileName, avatarFile);
+            if (uploadError) throw uploadError;
+            const { data: { publicUrl } } = client.storage.from('avatars').getPublicUrl(fileName);
+            avatarUrl = publicUrl;
+        }
+
+        const { error: updateError } = await client.from('profiles')
+            .update({ 
+                full_name: newName, 
+                username: newUsername, 
+                avatar_url: avatarUrl 
+            })
+            .eq('id', currentUser.id);
+
+        if (updateError) throw updateError;
+
+        if (newPass && newPass.trim() !== "") {
+            const { error: passError } = await client.auth.updateUser({ password: newPass });
+            if (passError) throw passError;
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'สำเร็จ!',
+            text: 'อัปเดตข้อมูลเรียบร้อยแล้ว',
+            confirmButtonColor: '#721c24'
+        }).then(() => { 
+            location.reload(); 
+        });
+
+    } catch (err) {
+        console.error("Update Error:", err);
+        Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: err.message,
+            confirmButtonColor: '#721c24'
+        }).then(() => {
+            $('#profileModal').removeClass('hidden');
+        });
+    }
+});
+
+$('#avatarInput').change(function() {
+    const file = this.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => $('#profilePreview').attr('src', e.target.result);
+        reader.readAsDataURL(file);
+    }
+});
+
+
 $(document).on('submit', '#loginForm', async function(e) {
     e.preventDefault();
     const userInput = $('#username').val().trim().toLowerCase();
