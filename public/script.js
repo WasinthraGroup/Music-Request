@@ -112,7 +112,7 @@ async function updateNavbarUI(session) {
             </button>
             <div id="profileDropdown" class="hidden absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-[1001] animate__animated animate__fadeInUp animate__faster">
                 <button onclick="openProfileModal()" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">⚙️ ตั้งค่าโปรไฟล์</button>
-                <a href="workshop.html" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">📅 ตารางงานของฉัน</a>
+                <a href="https://studio-5lgd.onrender.com/workshop.html" class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">📅 ตารางงานของฉัน</a>
                 <hr class="my-2 border-gray-50">
                 <button onclick="logout()" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-3">🚪 ออกจากระบบ</button>
             </div>
