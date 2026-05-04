@@ -5,17 +5,20 @@ const client = supabase.createClient(supabaseUrl, supabaseKey);
 // --- 2. Global State ---
 let currentUser = null;
 
-// --- 3. Authentication & Profile Logic ---
+// --- 3. Authentication Logic ---
 async function checkUserAuth() {
     try {
+        // ดึงข้อมูล User ปัจจุบัน
         const { data: { user }, error: authError } = await client.auth.getUser();
         
+        // กฎเหล็ก: ถ้าไม่มี User หรือ Error ให้เตะไปหน้า Login ทันที
         if (authError || !user) {
-            updateGuestUI();
+            console.warn("Unauthorized access - Redirecting to login...");
+            window.location.href = 'login.html'; 
             return;
         }
 
-        // ดึงข้อมูล Profile จากฐานข้อมูล
+        // ถ้ามี User ให้ดึง Profile ต่อ
         const { data: profile, error: profileError } = await client
             .from('profiles')
             .select('*')
@@ -28,9 +31,14 @@ async function checkUserAuth() {
         updateUserUI(profile);
 
     } catch (err) {
-        console.error("Auth Error:", err.message);
-        updateGuestUI();
+        console.error("Critical Auth Error:", err.message);
+        window.location.href = 'login.html';
     }
+}
+
+async function logout() {
+    await client.auth.signOut();
+    window.location.href = 'login.html';
 }
 
 // --- 4. UI Management ---
@@ -38,20 +46,11 @@ function updateUserUI(profile) {
     const avatar = profile.avatar_url || 'https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png';
     const displayName = profile.full_name || profile.username || 'User';
 
-    // อัปเดตแถบสถานะในหน้า Music Room
     $('#authStatus').html(`
-        <div class="flex items-center gap-2">
-            <img src="${avatar}" class="w-6 h-6 rounded-full border border-[#b38b59]">
-            <span class="text-xs font-bold text-[#b38b59]">สวัสดี, ${displayName}</span>
+        <div class="flex items-center gap-2 bg-white/50 py-1 pl-1 pr-3 rounded-full border border-[#b38b59]/20 shadow-sm">
+            <img src="${avatar}" class="w-7 h-7 rounded-full object-cover border border-[#b38b59]">
+            <span class="text-[11px] font-bold text-[#b38b59]">${displayName}</span>
         </div>
-    `);
-}
-
-function updateGuestUI() {
-    $('#authStatus').html(`
-        <a href="login.html" class="text-xs font-bold text-gray-400 hover:text-[#721c24] transition-colors">
-            <i class="fa-solid fa-right-to-bracket mr-1"></i> เข้าสู่ระบบเพื่อขอเพลง
-        </a>
     `);
 }
 
