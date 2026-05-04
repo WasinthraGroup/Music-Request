@@ -61,9 +61,8 @@ function updateUserUI(profile) {
 
 function setupNavigation() {
     const navLinks = [
-        { name: 'หน้าหลัก', href: 'https://wasinstudio.com' },
-        { name: 'จัดการงาน', href: '#' }, 
-        { name: 'ห้องเพลง', href: 'index.html' }
+        { name: 'หน้าหลัก', href: 'https://studio-5lgd.onrender.com' },
+        { name: 'เวิร์กชอป', href: 'https://studio-5lgd.onrender.com/workshop.html' }, 
     ];
 
     const desktopNav = $('#desktopNav');
