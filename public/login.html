@@ -20,12 +20,16 @@
 
         <form id="loginForm" class="space-y-6">
             <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Email Address</label>
-                <input type="email" id="email" required class="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-[#b38b59]/20 transition-all">
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Username or Email</label>
+                <input id="username" name="username" type="text" required 
+                       placeholder="ชื่อผู้ใช้ หรือ อีเมล"
+                       class="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-[#b38b59]/20 transition-all">
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Password</label>
-                <input type="password" id="password" required class="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-[#b38b59]/20 transition-all">
+                <input type="password" id="password" name="password" required 
+                       placeholder="••••••••"
+                       class="w-full px-5 py-3 rounded-xl border border-gray-100 bg-gray-50 outline-none focus:ring-2 focus:ring-[#b38b59]/20 transition-all">
             </div>
             <button type="submit" class="w-full bg-[#721c24] text-white py-4 rounded-xl font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all">
                 เข้าสู่ระบบ
@@ -34,39 +38,5 @@
     </div>
 
     <script src="script.js"></script>
-    <script>
-        $('#loginForm').on('submit', async function(e) {
-            e.preventDefault();
-            const email = $('#email').val();
-            const password = $('#password').val();
-
-            Swal.fire({
-                title: 'กำลังตรวจสอบ...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const { data, error } = await client.auth.signInWithPassword({ email, password });
-
-            if (error) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ล้มเหลว',
-                    text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง',
-                    confirmButtonColor: '#721c24'
-                });
-            } else {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'สำเร็จ!',
-                    text: 'กำลังพาท่านไปที่ห้องเพลง...',
-                    timer: 1500,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.href = 'index.html';
-                });
-            }
-        });
-    </script>
 </body>
 </html>
