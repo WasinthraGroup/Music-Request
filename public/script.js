@@ -1,3 +1,4 @@
+// --- 1. Supabase Configuration ---
 const supabaseUrl = 'https://fucrcbuqbpnbftyljqgi.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ1Y3JjYnVxYnBuYmZ0eWxqcWdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU2Nzc1MTIsImV4cCI6MjA5MTI1MzUxMn0.XXKIgZ_9Ciciq3qfgINK48J70HbunRyP28p1MiIv6To';
 const client = supabase.createClient(supabaseUrl, supabaseKey);
@@ -12,23 +13,21 @@ async function checkUserAuth() {
     try {
         const { data: { user }, error: authError } = await client.auth.getUser();
         
+        // กรณี: ยังไม่ได้ Login
         if (authError || !user) {
-            // ถ้าไม่มี User และ "ไม่ได้อยู่ที่หน้า login" ให้ส่งไปหน้า login
             if (!isLoginPage) {
-                console.warn("Unauthorized access - Redirecting to login...");
-                window.location.href = 'login.html';
+                window.location.href = 'login.html'; // ถ้าไม่ใช่หน้า login ให้ดีดออก
             }
-            return;
+            return; 
         }
 
-        // --- ถ้า Login แล้ว ---
-        
-        // ถ้าอยู่ที่หน้า login แต่ดันมี User (Login ค้างไว้) ให้ส่งไปหน้าหลัก
+        // กรณี: Login แล้ว
         if (isLoginPage) {
-            window.location.href = 'index.html'; 
+            window.location.href = 'index.html'; // ถ้า Login แล้วดันมาหน้า login ให้ส่งไปหน้าหลัก
             return;
         }
 
+        // ดึง Profile จาก Table profiles
         const { data: profile, error: profileError } = await client
             .from('profiles')
             .select('*')
@@ -39,19 +38,16 @@ async function checkUserAuth() {
 
         currentUser = profile;
         updateUserUI(profile);
-        $('body').removeClass('hidden'); // แสดงหน้าเว็บเมื่อทุกอย่างพร้อม
+        
+        // แสดงหน้าเว็บ (เฉพาะหน้าที่ไม่ใช่ login)
+        if (!isLoginPage) {
+            $('body').removeClass('hidden');
+        }
 
     } catch (err) {
-        console.error("Critical Auth Error:", err.message);
-        if (!isLoginPage) {
-            window.location.href = 'login.html';
-        }
+        console.error("Auth Error:", err.message);
+        if (!isLoginPage) window.location.href = 'login.html';
     }
-}
-
-async function logout() {
-    await client.auth.signOut();
-    window.location.href = 'login.html';
 }
 
 // --- 4. UI Management ---
@@ -65,6 +61,11 @@ function updateUserUI(profile) {
             <span class="text-[11px] font-bold text-[#b38b59]">${displayName}</span>
         </div>
     `);
+}
+
+async function logout() {
+    await client.auth.signOut();
+    window.location.href = 'login.html';
 }
 
 // --- 5. Initialization ---
