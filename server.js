@@ -422,20 +422,29 @@ server.listen(PORT, () => {
 
 
 
-const { Client, GatewayIntentBits } = require('discord.js');
+/* =========================
+   DISCORD BOT (ERELA + PUBLIC LAVALINK)
+========================= */
+
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { Manager } = require('erela.js');
 
+/* ========= ENV ========= */
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+/* ========= BOT ========= */
 const bot = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
 
+/* ========= LAVALINK (PUBLIC NODE) ========= */
 const manager = new Manager({
     nodes: [
         {
-            host: "lavalink-v4.ajieblogs.eu.org",
+            host: "lava.link",
             port: 80,
-            password: "ajieblogs.eu.org",
-            secure: false
+            password: "anything"
         }
     ],
     send(id, payload) {
@@ -444,78 +453,157 @@ const manager = new Manager({
     }
 });
 
-bot.on("ready", () => {
-    console.log(`Bot ready: ${bot.user.tag}`);
+/* ========= DEBUG ========= */
+manager.on("nodeConnect", () => {
+    console.log("✅ Lavalink connected");
+});
+
+manager.on("nodeError", (_, err) => {
+    console.log("❌ Lavalink error:", err.message);
+});
+
+/* ========= READY ========= */
+bot.once('ready', () => {
+    console.log(`🤖 Bot ready: ${bot.user.tag}`);
     manager.init(bot.user.id);
 });
 
-bot.on("raw", (d) => manager.updateVoiceState(d));
+/* ========= SLASH COMMAND ========= */
+const commands = [
+    new SlashCommandBuilder()
+        .setName('join')
+        .setDescription('ให้บอทเข้าห้องและเล่นเพลงปัจจุบัน'),
 
-async function playDiscord(guildId, voiceChannelId, textChannel) {
+    new SlashCommandBuilder()
+        .setName('leave')
+        .setDescription('ให้บอทออกจากห้อง')
+].map(c => c.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+
+(async () => {
+    try {
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: commands }
+        );
+        console.log('✅ Slash commands registered');
+    } catch (err) {
+        console.error(err);
+    }
+})();
+
+/* ========= PLAYER STORAGE ========= */
+let players = new Map();
+
+/* ========= PLAY FUNCTION ========= */
+async function playDiscord(guildId, voiceChannelId, textChannelId) {
     if (!current) return;
 
-    const player = manager.create({
-        guild: guildId,
-        voiceChannel: voiceChannelId,
-        textChannel: textChannel.id,
-        selfDeafen: true
-    });
+    let player = players.get(guildId);
 
-    if (player.state !== "CONNECTED") player.connect();
+    if (!player) {
+        player = manager.create({
+            guild: guildId,
+            voiceChannel: voiceChannelId,
+            textChannel: textChannelId,
+            selfDeafen: true
+        });
 
-    const res = await manager.search(
-        `https://www.youtube.com/watch?v=${current.videoId}`,
-        textChannel
-    );
+        player.connect();
+        players.set(guildId, player);
+    }
 
-    if (!res.tracks.length) return;
+    if (!player.connected) player.connect();
+
+    const res = await player.search(`ytsearch:${current.title}`, "system");
+
+    if (!res || !res.tracks.length) {
+        console.log("❌ No track found");
+        return;
+    }
 
     player.queue.clear();
     player.queue.add(res.tracks[0]);
-    player.play();
+
+    if (!player.playing && !player.paused) {
+        player.play();
+    }
 }
 
-/* ===== Slash Commands ===== */
-bot.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+/* ========= AUTO NEXT ========= */
+manager.on("trackEnd", (player) => {
+    if (queue.length > 0) {
+        advanceQueue();
 
-    const channel = interaction.member.voice.channel;
-
-    if (!channel) {
-        return interaction.reply({ content: 'ต้องอยู่ในห้องเสียงก่อน', ephemeral: true });
-    }
-
-    if (interaction.commandName === 'join') {
-        await playDiscord(
-            interaction.guild.id,
-            channel.id,
-            interaction.channel
-        );
-
-        interaction.reply('เข้าห้อง + เล่นแล้ว');
-    }
-
-    if (interaction.commandName === 'leave') {
-        const player = manager.players.get(interaction.guild.id);
-        if (player) player.destroy();
-
-        interaction.reply('ออกแล้ว');
+        setTimeout(() => {
+            playDiscord(player.guild, player.voiceChannel, player.textChannel);
+        }, 1000);
     }
 });
 
-/* ===== Sync กับเว็บ ===== */
+/* ========= INTERACTION ========= */
+bot.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const member = interaction.member;
+    const channel = member.voice.channel;
+
+    if (!channel) {
+        return interaction.reply({
+            content: '❌ ต้องอยู่ห้องเสียงก่อน',
+            ephemeral: true
+        });
+    }
+
+    if (interaction.commandName === 'join') {
+        await interaction.reply('🎶 กำลังเข้า...');
+
+        await playDiscord(
+            interaction.guildId,
+            channel.id,
+            interaction.channel.id
+        );
+    }
+
+    if (interaction.commandName === 'leave') {
+        const player = players.get(interaction.guildId);
+
+        if (!player) {
+            return interaction.reply({
+                content: '❌ ยังไม่ได้เข้าห้อง',
+                ephemeral: true
+            });
+        }
+
+        if (player.voiceChannel !== channel.id) {
+            return interaction.reply({
+                content: '❌ ต้องอยู่ห้องเดียวกัน',
+                ephemeral: true
+            });
+        }
+
+        player.destroy();
+        players.delete(interaction.guildId);
+
+        interaction.reply('👋 ออกจากห้องแล้ว');
+    }
+});
+
+/* ========= SYNC กับ WEB ========= */
 const oldStartCurrent2 = startCurrent;
+
 startCurrent = function () {
     oldStartCurrent2();
 
     setTimeout(() => {
-        for (const guild of bot.guilds.cache.values()) {
-            const vc = guild.members.me?.voice?.channel;
-            if (!vc) continue;
-
-            playDiscord(guild.id, vc.id, vc.guild.channels.cache.first());
+        for (const [guildId, player] of players) {
+            playDiscord(guildId, player.voiceChannel, player.textChannel);
         }
     }, 1500);
 };
 
-bot.login(process.env.DISCORD_TOKEN);
+/* ========= START ========= */
+if (DISCORD_TOKEN) {
+    bot.login(DISCORD_TOKEN);
+}
