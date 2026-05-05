@@ -423,11 +423,12 @@ server.listen(PORT, () => {
 
 
 /* =========================
-   DISCORD BOT (APPEND ONLY)
+   DISCORD BOT (STABLE VERSION)
 ========================= */
+
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
-const ytdl = require('ytdl-core');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const play = require('play-dl');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -436,132 +437,155 @@ const bot = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
 
-let botConnection = null;
-let botPlayer = createAudioPlayer();
-let lastVideoId = null;
+let voiceConnection = null;
+let audioPlayer = createAudioPlayer();
 
-/* =========================
-   REGISTER SLASH COMMANDS
-========================= */
+/* ========= SAFE STREAM ========= */
+async function safeStream(videoId) {
+    try {
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+        const stream = await play.stream(url, {
+            discordPlayerCompatibility: true
+        });
+
+        return createAudioResource(stream.stream, {
+            inputType: stream.type
+        });
+
+    } catch (err) {
+        console.log("STREAM FAIL, retrying...", err.message);
+
+        try {
+            // retry 1 ครั้ง
+            const stream = await play.stream(`https://www.youtube.com/watch?v=${videoId}`);
+            return createAudioResource(stream.stream, {
+                inputType: stream.type
+            });
+        } catch (e) {
+            console.log("FINAL STREAM FAIL:", e.message);
+            return null;
+        }
+    }
+}
+
+/* ========= PLAY CURRENT ========= */
+async function playCurrentInDiscord() {
+    if (!voiceConnection || !current) return;
+
+    const resource = await safeStream(current.videoId);
+    if (!resource) return;
+
+    audioPlayer.play(resource);
+}
+
+/* ========= AUTO NEXT ========= */
+audioPlayer.on(AudioPlayerStatus.Idle, () => {
+    if (queue.length > 0) {
+        advanceQueue();
+        playCurrentInDiscord();
+    }
+});
+
+audioPlayer.on('error', err => {
+    console.log("AUDIO ERROR:", err.message);
+});
+
+/* ========= COMMANDS ========= */
+const commands = [
+    new SlashCommandBuilder()
+        .setName('join')
+        .setDescription('เข้าห้องเสียง'),
+
+    new SlashCommandBuilder()
+        .setName('leave')
+        .setDescription('ออกจากห้องเสียง')
+].map(cmd => cmd.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+
 (async () => {
     try {
-        const commands = [
-            new SlashCommandBuilder().setName('join').setDescription('ให้บอทเข้าห้องเสียง'),
-            new SlashCommandBuilder().setName('leave').setDescription('ให้บอทออกห้องเสียง')
-        ].map(c => c.toJSON());
-
-        const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-
         await rest.put(
             Routes.applicationCommands(CLIENT_ID),
             { body: commands }
         );
-
-        console.log('✅ Slash commands ready');
-    } catch (e) {
-        console.log('❌ Slash register error:', e.message);
+        console.log('Slash commands ready');
+    } catch (err) {
+        console.error(err);
     }
 })();
 
-/* =========================
-   SYNC เพลงจากระบบเว็บ
-========================= */
-function syncWithWeb() {
-    try {
-        if (!current || !current.videoId) return;
+/* ========= BOT READY ========= */
+bot.once('ready', () => {
+    console.log(`Discord bot ready: ${bot.user.tag}`);
+});
 
-        if (current.videoId === lastVideoId) return;
-
-        lastVideoId = current.videoId;
-
-        if (!botConnection) return;
-
-        const stream = ytdl(`https://www.youtube.com/watch?v=${current.videoId}`, {
-            filter: 'audioonly',
-            quality: 'highestaudio',
-            highWaterMark: 1 << 25
-        });
-
-        const resource = createAudioResource(stream);
-        botPlayer.play(resource);
-        botConnection.subscribe(botPlayer);
-
-        console.log('🎶 BOT PLAY:', current.title);
-
-    } catch (e) {
-        console.log('BOT SYNC ERROR:', e.message);
-    }
-}
-
-setInterval(syncWithWeb, 2000);
-
-/* =========================
-   COMMAND HANDLER
-========================= */
+/* ========= INTERACTION ========= */
 bot.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    const channel = interaction.member.voice.channel;
+    const member = interaction.member;
+    const channel = member.voice.channel;
 
     if (!channel) {
-        return interaction.reply({
-            content: '❌ คุณต้องอยู่ในห้องเสียงก่อน',
-            ephemeral: true
-        });
+        return interaction.reply({ content: 'ต้องอยู่ในห้องเสียงก่อน', ephemeral: true });
     }
 
     if (interaction.commandName === 'join') {
-
-        if (botConnection) {
-            if (botConnection.joinConfig.channelId !== channel.id) {
-                return interaction.reply({
-                    content: '❌ บอทอยู่ห้องอื่น',
-                    ephemeral: true
-                });
-            }
-            return interaction.reply('✅ อยู่แล้ว');
+        if (voiceConnection) {
+            return interaction.reply({ content: 'บอทอยู่แล้ว', ephemeral: true });
         }
 
-        botConnection = joinVoiceChannel({
+        voiceConnection = joinVoiceChannel({
             channelId: channel.id,
             guildId: channel.guild.id,
             adapterCreator: channel.guild.voiceAdapterCreator
         });
 
-        interaction.reply('🎧 เข้าห้องแล้ว');
+        voiceConnection.subscribe(audioPlayer);
+
+        interaction.reply('เข้าห้องแล้ว');
+
+        // เล่นเพลงปัจจุบันทันที
+        setTimeout(() => {
+            playCurrentInDiscord();
+        }, 1000);
     }
 
     if (interaction.commandName === 'leave') {
-
-        if (!botConnection) {
-            return interaction.reply('❌ ยังไม่ได้เข้า');
+        if (!voiceConnection) {
+            return interaction.reply({ content: 'ยังไม่ได้เข้าห้อง', ephemeral: true });
         }
 
-        if (botConnection.joinConfig.channelId !== channel.id) {
-            return interaction.reply({
-                content: '❌ ต้องอยู่ห้องเดียวกัน',
-                ephemeral: true
-            });
+        if (voiceConnection.joinConfig.channelId !== channel.id) {
+            return interaction.reply({ content: 'ต้องอยู่ห้องเดียวกัน', ephemeral: true });
         }
 
-        botConnection.destroy();
-        botConnection = null;
-        lastVideoId = null;
+        voiceConnection.destroy();
+        voiceConnection = null;
 
-        interaction.reply('👋 ออกจากห้องแล้ว');
+        interaction.reply('ออกแล้ว');
     }
 });
 
-/* =========================
-   START BOT
-========================= */
-bot.once('ready', () => {
-    console.log(`🤖 Bot ready: ${bot.user.tag}`);
-});
+/* ========= SYNC กับ WEB ========= */
+function syncDiscordPlayer() {
+    if (!voiceConnection || !current) return;
+    playCurrentInDiscord();
+}
 
-bot.login(DISCORD_TOKEN);
+// hook เข้า logic เดิมของคุณ
+const oldStartCurrent = startCurrent;
+startCurrent = function () {
+    oldStartCurrent();
+    setTimeout(syncDiscordPlayer, 1500);
+};
 
-
+/* ========= START BOT ========= */
+if (DISCORD_TOKEN) {
+    bot.login(DISCORD_TOKEN);
+}
 
 
 
