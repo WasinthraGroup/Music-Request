@@ -422,174 +422,100 @@ server.listen(PORT, () => {
 
 
 
-/* =========================
-   DISCORD BOT (STABLE VERSION)
-========================= */
-
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
+const { Client, GatewayIntentBits } = require('discord.js');
+const { Manager } = require('erela.js');
 
 const bot = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
 
-let voiceConnection = null;
-let audioPlayer = createAudioPlayer();
-
-/* ========= SAFE STREAM ========= */
-async function safeStream(videoId) {
-    const instances = [
-        "https://inv.nadeko.net",
-        "https://invidious.privacydev.net",
-        "https://yewtu.be",
-        "https://invidious.fdn.fr"
-    ];
-
-    for (const base of instances) {
-        try {
-            const url = `${base}/latest_version?id=${videoId}&itag=251`;
-
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("bad response");
-
-            const stream = res.body;
-
-            const { createAudioResource, StreamType } = require('@discordjs/voice');
-
-            return createAudioResource(stream, {
-                inputType: StreamType.WebmOpus
-            });
-
-        } catch (err) {
-            console.log("Instance fail:", base);
+const manager = new Manager({
+    nodes: [
+        {
+            host: "lavalink-v4.ajieblogs.eu.org",
+            port: 80,
+            password: "ajieblogs.eu.org",
+            secure: false
         }
+    ],
+    send(id, payload) {
+        const guild = bot.guilds.cache.get(id);
+        if (guild) guild.shard.send(payload);
     }
+});
 
-    console.log("ALL INSTANCES FAILED");
-    return null;
+bot.on("ready", () => {
+    console.log(`Bot ready: ${bot.user.tag}`);
+    manager.init(bot.user.id);
+});
+
+bot.on("raw", (d) => manager.updateVoiceState(d));
+
+async function playDiscord(guildId, voiceChannelId, textChannel) {
+    if (!current) return;
+
+    const player = manager.create({
+        guild: guildId,
+        voiceChannel: voiceChannelId,
+        textChannel: textChannel.id,
+        selfDeafen: true
+    });
+
+    if (player.state !== "CONNECTED") player.connect();
+
+    const res = await manager.search(
+        `https://www.youtube.com/watch?v=${current.videoId}`,
+        textChannel
+    );
+
+    if (!res.tracks.length) return;
+
+    player.queue.clear();
+    player.queue.add(res.tracks[0]);
+    player.play();
 }
 
-/* ========= PLAY CURRENT ========= */
-async function playCurrentInDiscord() {
-    if (!voiceConnection || !current) return;
-
-    const resource = await safeStream(current.videoId);
-    if (!resource) return;
-
-    audioPlayer.play(resource);
-}
-
-/* ========= AUTO NEXT ========= */
-audioPlayer.on(AudioPlayerStatus.Idle, () => {
-    if (queue.length > 0) {
-        advanceQueue();
-        playCurrentInDiscord();
-    }
-});
-
-audioPlayer.on('error', err => {
-    console.log("AUDIO ERROR:", err.message);
-});
-
-/* ========= COMMANDS ========= */
-const commands = [
-    new SlashCommandBuilder()
-        .setName('join')
-        .setDescription('เข้าห้องเสียง'),
-
-    new SlashCommandBuilder()
-        .setName('leave')
-        .setDescription('ออกจากห้องเสียง')
-].map(cmd => cmd.toJSON());
-
-const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-
-(async () => {
-    try {
-        await rest.put(
-            Routes.applicationCommands(CLIENT_ID),
-            { body: commands }
-        );
-        console.log('Slash commands ready');
-    } catch (err) {
-        console.error(err);
-    }
-})();
-
-/* ========= BOT READY ========= */
-bot.once('ready', () => {
-    console.log(`Discord bot ready: ${bot.user.tag}`);
-});
-
-/* ========= INTERACTION ========= */
+/* ===== Slash Commands ===== */
 bot.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
-    const member = interaction.member;
-    const channel = member.voice.channel;
+    const channel = interaction.member.voice.channel;
 
     if (!channel) {
         return interaction.reply({ content: 'ต้องอยู่ในห้องเสียงก่อน', ephemeral: true });
     }
 
     if (interaction.commandName === 'join') {
-        if (voiceConnection) {
-            return interaction.reply({ content: 'บอทอยู่แล้ว', ephemeral: true });
-        }
+        await playDiscord(
+            interaction.guild.id,
+            channel.id,
+            interaction.channel
+        );
 
-        voiceConnection = joinVoiceChannel({
-            channelId: channel.id,
-            guildId: channel.guild.id,
-            adapterCreator: channel.guild.voiceAdapterCreator
-        });
-
-        voiceConnection.subscribe(audioPlayer);
-
-        interaction.reply('เข้าห้องแล้ว');
-
-        // เล่นเพลงปัจจุบันทันที
-        setTimeout(() => {
-            playCurrentInDiscord();
-        }, 1000);
+        interaction.reply('เข้าห้อง + เล่นแล้ว');
     }
 
     if (interaction.commandName === 'leave') {
-        if (!voiceConnection) {
-            return interaction.reply({ content: 'ยังไม่ได้เข้าห้อง', ephemeral: true });
-        }
-
-        if (voiceConnection.joinConfig.channelId !== channel.id) {
-            return interaction.reply({ content: 'ต้องอยู่ห้องเดียวกัน', ephemeral: true });
-        }
-
-        voiceConnection.destroy();
-        voiceConnection = null;
+        const player = manager.players.get(interaction.guild.id);
+        if (player) player.destroy();
 
         interaction.reply('ออกแล้ว');
     }
 });
 
-/* ========= SYNC กับ WEB ========= */
-function syncDiscordPlayer() {
-    if (!voiceConnection || !current) return;
-    playCurrentInDiscord();
-}
-
-// hook เข้า logic เดิมของคุณ
-const oldStartCurrent = startCurrent;
+/* ===== Sync กับเว็บ ===== */
+const oldStartCurrent2 = startCurrent;
 startCurrent = function () {
-    oldStartCurrent();
-    setTimeout(syncDiscordPlayer, 1500);
+    oldStartCurrent2();
+
+    setTimeout(() => {
+        for (const guild of bot.guilds.cache.values()) {
+            const vc = guild.members.me?.voice?.channel;
+            if (!vc) continue;
+
+            playDiscord(guild.id, vc.id, vc.guild.channels.cache.first());
+        }
+    }, 1500);
 };
 
-/* ========= START BOT ========= */
-if (DISCORD_TOKEN) {
-    bot.login(DISCORD_TOKEN);
-}
-
-
-
-
+bot.login(process.env.DISCORD_TOKEN);
