@@ -423,17 +423,17 @@ server.listen(PORT, () => {
 
 
 /* =========================
-   DISCORD + LAVALINK (FINAL)
+   DISCORD + LAVALINK (STABLE FINAL)
 ========================= */
 
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { Manager } = require('erela.js');
 
-/* ========= CONFIG ========= */
+/* ========= ENV ========= */
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
-/* ========= DISCORD CLIENT ========= */
+/* ========= BOT ========= */
 const bot = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
@@ -455,30 +455,31 @@ const manager = new Manager({
     }
 });
 
-/* ========= MANAGER EVENTS ========= */
+/* ========= DEBUG ========= */
 manager
-    .on("nodeConnect", () => console.log("✅ Lavalink connected"))
-    .on("nodeError", (node, err) => console.log("❌ Lavalink error:", err.message));
+.on("nodeConnect", () => console.log("✅ Lavalink connected"))
+.on("nodeError", (node, err) => console.log("❌ Lavalink error:", err.message))
+.on("nodeDisconnect", () => console.log("⚠️ Lavalink disconnected"));
 
-/* ========= DISCORD READY ========= */
-bot.once('ready', async () => {
+/* ========= READY ========= */
+bot.once("ready", async () => {
     console.log(`🤖 Bot ready: ${bot.user.tag}`);
 
-    // 🔥 สำคัญสุด (แก้ 403 ทั้งหมด)
+    // 🔥 สำคัญที่สุด
     manager.init(bot.user.id);
 
-    // register slash commands
+    // slash commands
     const commands = [
         new SlashCommandBuilder()
-            .setName('join')
-            .setDescription('ให้บอทเข้าห้องเสียง'),
+            .setName("join")
+            .setDescription("ให้บอทเข้าห้องเสียง"),
 
         new SlashCommandBuilder()
-            .setName('leave')
-            .setDescription('ให้บอทออกจากห้องเสียง')
-    ].map(cmd => cmd.toJSON());
+            .setName("leave")
+            .setDescription("ให้บอทออกจากห้องเสียง")
+    ].map(c => c.toJSON());
 
-    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+    const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
 
     await rest.put(
         Routes.applicationCommands(CLIENT_ID),
@@ -488,69 +489,90 @@ bot.once('ready', async () => {
     console.log("✅ Slash commands ready");
 });
 
-/* ========= DISCORD RAW (สำคัญกับ erela) ========= */
+/* ========= REQUIRED FOR VOICE ========= */
 bot.on("raw", (d) => manager.updateVoiceState(d));
 
-/* ========= INTERACTIONS ========= */
-bot.on('interactionCreate', async interaction => {
+/* ========= COMMANDS ========= */
+bot.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     const member = interaction.member;
     const voiceChannel = member.voice.channel;
 
     if (!voiceChannel) {
-        return interaction.reply({ content: '❌ ต้องอยู่ห้องเสียงก่อน', ephemeral: true });
+        return interaction.reply({
+            content: "❌ ต้องอยู่ห้องเสียงก่อน",
+            ephemeral: true
+        });
     }
 
     const guildId = interaction.guild.id;
 
-    if (interaction.commandName === 'join') {
-        const player = manager.create({
-            guild: guildId,
-            voiceChannel: voiceChannel.id,
-            textChannel: interaction.channel.id,
-            selfDeafen: true
-        });
+    /* ===== JOIN ===== */
+    if (interaction.commandName === "join") {
+
+        // ❗ กันพัง: node ยังไม่ connect
+        if (!manager.nodes.some(n => n.connected)) {
+            return interaction.reply({
+                content: "❌ Lavalink ยังไม่เชื่อมต่อ",
+                ephemeral: true
+            });
+        }
+
+        let player = manager.players.get(guildId);
+
+        if (!player) {
+            player = manager.create({
+                guild: guildId,
+                voiceChannel: voiceChannel.id,
+                textChannel: interaction.channel.id,
+                selfDeafen: true
+            });
+        }
 
         player.connect();
 
-        interaction.reply('✅ เข้าห้องแล้ว');
+        await interaction.reply("✅ เข้าห้องแล้ว");
 
         // เล่นเพลงปัจจุบันจากเว็บ
         setTimeout(() => playDiscord(), 1500);
     }
 
-    if (interaction.commandName === 'leave') {
+    /* ===== LEAVE ===== */
+    if (interaction.commandName === "leave") {
         const player = manager.players.get(guildId);
 
         if (!player) {
-            return interaction.reply({ content: '❌ ยังไม่ได้เข้าห้อง', ephemeral: true });
+            return interaction.reply({
+                content: "❌ ยังไม่ได้เข้าห้อง",
+                ephemeral: true
+            });
         }
 
         if (player.voiceChannel !== voiceChannel.id) {
-            return interaction.reply({ content: '❌ ต้องอยู่ห้องเดียวกัน', ephemeral: true });
+            return interaction.reply({
+                content: "❌ ต้องอยู่ห้องเดียวกัน",
+                ephemeral: true
+            });
         }
 
         player.destroy();
 
-        interaction.reply('👋 ออกจากห้องแล้ว');
+        return interaction.reply("👋 ออกจากห้องแล้ว");
     }
 });
 
-/* ========= PLAY FUNCTION ========= */
+/* ========= PLAY ========= */
 async function playDiscord() {
     if (!current) return;
 
-    const guilds = bot.guilds.cache;
-
-    guilds.forEach(guild => {
+    bot.guilds.cache.forEach(guild => {
         const player = manager.players.get(guild.id);
         if (!player) return;
 
         try {
             player.stop();
 
-            // 🔥 ใช้ YouTube URL (Lavalink จะ handle เอง)
             player.play(`https://www.youtube.com/watch?v=${current.videoId}`);
         } catch (err) {
             console.log("PLAY ERROR:", err.message);
@@ -568,7 +590,7 @@ startCurrent = function () {
     }, 1500);
 };
 
-/* ========= START BOT ========= */
+/* ========= START ========= */
 if (DISCORD_TOKEN) {
     bot.login(DISCORD_TOKEN);
 }
