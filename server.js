@@ -442,16 +442,10 @@ const bot = new Client({
 const manager = new Manager({
     nodes: [
         {
-            host: "lavalink.devamop.in",
-            port: 443,
-            password: "DevamOP",
-            secure: true
-        },
-        {
-            host: "lavalink.oops.wtf",
-            port: 443,
-            password: "www.freelavalink.ga",
-            secure: true
+            host: "144.91.106.47",
+            port: 2333,
+            password: "youshallnotpass",
+            secure: false
         }
     ],
     send(id, payload) {
