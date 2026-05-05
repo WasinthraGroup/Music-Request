@@ -428,7 +428,6 @@ server.listen(PORT, () => {
 
 const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
-const play = require('play-dl');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -442,31 +441,35 @@ let audioPlayer = createAudioPlayer();
 
 /* ========= SAFE STREAM ========= */
 async function safeStream(videoId) {
-    try {
-        const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const instances = [
+        "https://inv.nadeko.net",
+        "https://invidious.privacydev.net",
+        "https://yewtu.be",
+        "https://invidious.fdn.fr"
+    ];
 
-        const stream = await play.stream(url, {
-            discordPlayerCompatibility: true
-        });
-
-        return createAudioResource(stream.stream, {
-            inputType: stream.type
-        });
-
-    } catch (err) {
-        console.log("STREAM FAIL, retrying...", err.message);
-
+    for (const base of instances) {
         try {
-            // retry 1 ครั้ง
-            const stream = await play.stream(`https://www.youtube.com/watch?v=${videoId}`);
-            return createAudioResource(stream.stream, {
-                inputType: stream.type
+            const url = `${base}/latest_version?id=${videoId}&itag=251`;
+
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("bad response");
+
+            const stream = res.body;
+
+            const { createAudioResource, StreamType } = require('@discordjs/voice');
+
+            return createAudioResource(stream, {
+                inputType: StreamType.WebmOpus
             });
-        } catch (e) {
-            console.log("FINAL STREAM FAIL:", e.message);
-            return null;
+
+        } catch (err) {
+            console.log("Instance fail:", base);
         }
     }
+
+    console.log("ALL INSTANCES FAILED");
+    return null;
 }
 
 /* ========= PLAY CURRENT ========= */
