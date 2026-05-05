@@ -60,6 +60,13 @@ body {
     border: none;
 }
 
+#lyricsContent {
+    height: 400px;         /* กำหนดความสูงตามความเหมาะสม */
+    overflow-y: auto;      /* ให้เกิด Scrollbar ภายในกล่องนี้เท่านั้น */
+    position: relative;    /* ช่วยเรื่องการคำนวณตำแหน่ง */
+    scroll-behavior: smooth; /* ทำให้การเลื่อนลื่นไหล */
+}
+
 .btn-thai:hover { opacity: 0.9; transform: translateY(-2px); }
 
 /* Animations */
