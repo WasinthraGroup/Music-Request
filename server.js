@@ -397,3 +397,172 @@ process.on('unhandledRejection', err => {
 server.listen(PORT, () => {
     console.log(`Music room running on http://localhost:${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================
+   DISCORD BOT (APPEND ONLY)
+========================= */
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+const ytdl = require('ytdl-core');
+
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+
+const bot = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
+});
+
+let botConnection = null;
+let botPlayer = createAudioPlayer();
+let lastVideoId = null;
+
+/* =========================
+   REGISTER SLASH COMMANDS
+========================= */
+(async () => {
+    try {
+        const commands = [
+            new SlashCommandBuilder().setName('join').setDescription('ให้บอทเข้าห้องเสียง'),
+            new SlashCommandBuilder().setName('leave').setDescription('ให้บอทออกห้องเสียง')
+        ].map(c => c.toJSON());
+
+        const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
+
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: commands }
+        );
+
+        console.log('✅ Slash commands ready');
+    } catch (e) {
+        console.log('❌ Slash register error:', e.message);
+    }
+})();
+
+/* =========================
+   SYNC เพลงจากระบบเว็บ
+========================= */
+function syncWithWeb() {
+    try {
+        if (!current || !current.videoId) return;
+
+        if (current.videoId === lastVideoId) return;
+
+        lastVideoId = current.videoId;
+
+        if (!botConnection) return;
+
+        const stream = ytdl(`https://www.youtube.com/watch?v=${current.videoId}`, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25
+        });
+
+        const resource = createAudioResource(stream);
+        botPlayer.play(resource);
+        botConnection.subscribe(botPlayer);
+
+        console.log('🎶 BOT PLAY:', current.title);
+
+    } catch (e) {
+        console.log('BOT SYNC ERROR:', e.message);
+    }
+}
+
+setInterval(syncWithWeb, 2000);
+
+/* =========================
+   COMMAND HANDLER
+========================= */
+bot.on('interactionCreate', async interaction => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const channel = interaction.member.voice.channel;
+
+    if (!channel) {
+        return interaction.reply({
+            content: '❌ คุณต้องอยู่ในห้องเสียงก่อน',
+            ephemeral: true
+        });
+    }
+
+    if (interaction.commandName === 'join') {
+
+        if (botConnection) {
+            if (botConnection.joinConfig.channelId !== channel.id) {
+                return interaction.reply({
+                    content: '❌ บอทอยู่ห้องอื่น',
+                    ephemeral: true
+                });
+            }
+            return interaction.reply('✅ อยู่แล้ว');
+        }
+
+        botConnection = joinVoiceChannel({
+            channelId: channel.id,
+            guildId: channel.guild.id,
+            adapterCreator: channel.guild.voiceAdapterCreator
+        });
+
+        interaction.reply('🎧 เข้าห้องแล้ว');
+    }
+
+    if (interaction.commandName === 'leave') {
+
+        if (!botConnection) {
+            return interaction.reply('❌ ยังไม่ได้เข้า');
+        }
+
+        if (botConnection.joinConfig.channelId !== channel.id) {
+            return interaction.reply({
+                content: '❌ ต้องอยู่ห้องเดียวกัน',
+                ephemeral: true
+            });
+        }
+
+        botConnection.destroy();
+        botConnection = null;
+        lastVideoId = null;
+
+        interaction.reply('👋 ออกจากห้องแล้ว');
+    }
+});
+
+/* =========================
+   START BOT
+========================= */
+bot.once('ready', () => {
+    console.log(`🤖 Bot ready: ${bot.user.tag}`);
+});
+
+bot.login(DISCORD_TOKEN);
+
+
+
+
+
+
