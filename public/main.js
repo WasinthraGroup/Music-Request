@@ -318,12 +318,14 @@ function renderLyricsSynced() {
     `;
     }).join('');
 
-    if (activeIndex >= 0 && activeIndex !== state.lyrics.lastActiveIndex) {
-        state.lyrics.lastActiveIndex = activeIndex;
-        const activeEl = el.lyricsContent.querySelector(`[data-lyric-index="${activeIndex}"]`);
-        if (activeEl) {
-            activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
+   if (activeEl) {
+        const container = el.lyricsContent;
+        const topPos = activeEl.offsetTop - (container.offsetHeight / 2) + (activeEl.offsetHeight / 2);
+        
+        container.scrollTo({
+            top: topPos,
+            behavior: 'smooth'
+        });
     }
 }
 
