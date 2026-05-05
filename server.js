@@ -442,7 +442,7 @@ const bot = new Client({
 const manager = new Manager({
     nodes: [
         {
-            host: "https://lava-abuy.onrender.com",
+            host: "lava-abuy.onrender.com", 
             port: 443,
             password: "youshallnotpass",
             secure: true
