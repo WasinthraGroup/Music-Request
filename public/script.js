@@ -10,10 +10,10 @@ $(document).ready(async function() {
     try {
         const { data: { session } } = await client.auth.getSession();
         
-        if (!session && currentPage !== 'login.html') {
-            window.location.href = 'login.html'; 
-            return; 
-        }
+        //if (!session && currentPage !== 'login.html') {
+            //window.location.href = 'login.html'; 
+            //return; 
+       // }
 
         if (session && currentPage === 'login.html') {
             window.location.href = 'index.html';
